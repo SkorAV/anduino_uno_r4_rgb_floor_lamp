@@ -1,6 +1,8 @@
 #include "BLEController.h"
 #include <Arduino.h>
 
+#define DEBUG
+
 extern LEDController ledController;
 extern StateManager stateManager;
 
@@ -43,33 +45,20 @@ void BLEController::begin() {
 void BLEController::update() {
   BLEDevice central = BLE.central();
 
-  if (central) {
-#ifdef DEBUG
-    Serial.print("[BLE] Connected to central: ");
-    Serial.println(central.address());
-#endif
-
-    while (central.connected()) {
-      if (powerChar.written()) handlePowerChange();
-      if (colorChar.written()) handleColorChange();
-      if (brightnessChar.written()) handleBrightnessChange();
-      if (animationChar.written()) handleAnimationChange();
-      if (speedChar.written()) handleSpeedChange();
-      
-      // Update characteristics if external changes happen (IR/Web)
-      // This is a simple way, though it could be optimized with flags
-      static uint32_t lastUpdate = 0;
-      if (millis() - lastUpdate > 1000) {
-        updateCharacteristics();
-        lastUpdate = millis();
-      }
-      
-      yield();
+  if (central && central.connected()) {
+    // Process any written characteristics
+    if (powerChar.written()) handlePowerChange();
+    if (colorChar.written()) handleColorChange();
+    if (brightnessChar.written()) handleBrightnessChange();
+    if (animationChar.written()) handleAnimationChange();
+    if (speedChar.written()) handleSpeedChange();
+    
+    // Periodically sync characteristics with internal state (for IR/Web changes)
+    static uint32_t lastSync = 0;
+    if (millis() - lastSync > 2000) {
+      updateCharacteristics();
+      lastSync = millis();
     }
-
-#ifdef DEBUG
-    Serial.println("[BLE] Central disconnected");
-#endif
   }
 }
 
